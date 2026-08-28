@@ -95,6 +95,25 @@
     collaborative_learning/2,
     convergence_process/2,
     coordinate_substrates/2,
+    % --- Substrato 237 ---
+    plasma_register_shot/6,
+    plasma_register_instability/4,
+    plasma_register_material/3,
+    plasma_best_velocity/1,
+    plasma_shots_with_blowby/1,
+    plasma_init/0,
+    % --- Substrato 238 ---
+    plx_register_shot/6,
+    plx_register_jet/6,
+    plx_best_velocity/1,
+    plx_avg_density/1,
+    plx_init/0,
+    % --- Substrato 239 ---
+    magnet_register_pulse/5,
+    magnet_register_design/4,
+    magnet_best_field/1,
+    magnet_kilotesla_pulses/1,
+    magnet_init/0,
     % --- Segurança ---
     is_safe_prompt/1,
     detect_jailbreak/2,
@@ -138,6 +157,13 @@
 :- dynamic iccid_registry/2.
 :- dynamic exploration_state/1.     % Substrato 213
 :- dynamic refinement_iteration/1.  % Substrato 213
+:- dynamic plasma_shot/6.
+:- dynamic plasma_instability/4.
+:- dynamic plasma_material/3.
+:- dynamic plx_shot/5.
+:- dynamic plx_jet/6.
+:- dynamic magnet_pulse/5.
+:- dynamic magnet_design/4.
 
 %%% ========================================================================
 %%% INICIALIZAÇÃO
@@ -165,6 +191,9 @@ agi_init :-
     retractall(iccid_registry(_, _)),
     retractall(exploration_state(_)),
     retractall(refinement_iteration(_)),
+    plasma_init,
+    plx_init,
+    magnet_init,
     assertz(coherence_tank(global, 0.5)),
     assertz(memory_index(1)),
     assertz(metrics(iterations, 0)),
@@ -187,9 +216,9 @@ agi_init :-
     network_init_nodes,
     network_quantum_init,
     format('~n╔═══════════════════════════════════════════════════════════════╗~n'),
-    format('║  🏛️ CATEDRAL OS v9.6 — Isomorfismo EH-CRSN                  ║~n'),
+    format('║  🏛️ CATEDRAL OS v13.9 — Substratos Avançados               ║~n'),
     format('║  Arkhe(n) ≡ Microtúbulo ≡ Clareira ≡ Λ                      ║~n'),
-    format('║  SUBSTRATOS 212-217: Colheita, Convergência, Coordenação    ║~n'),
+    format('║  SUBSTRATOS 237-239: Plasma, Jatos Supersônicos, Magnetos   ║~n'),
     format('╚═══════════════════════════════════════════════════════════════╝~n').
 
 %%% ========================================================================
@@ -1167,6 +1196,96 @@ substratum_phase(208, 0.8).
 substratum_phase(211, 0.9).
 
 %%% ========================================================================
+%%% SUBSTRATO 237: PLASMA RAILGUN SIMULATOR
+%%% ========================================================================
+
+plasma_register_shot(ID, Voltage, Current, Velocity, Density, Mass) :-
+    assertz(plasma_shot(ID, Voltage, Current, Velocity, Density, Mass)),
+    format('[Plasma] Shot ~w: V=~2f kV, v=~2f km/s~n', [ID, Voltage/1000, Velocity/1000]).
+
+plasma_register_instability(ShotID, BlowBy, Restrike, Erosion) :-
+    assertz(plasma_instability(ShotID, BlowBy, Restrike, Erosion)).
+
+plasma_register_material(Name, Type, Erosion) :-
+    assertz(plasma_material(Name, Type, Erosion)).
+
+plasma_best_velocity(Velocity) :-
+    findall(V, plasma_shot(_, _, _, V, _, _), Velocities),
+    ( Velocities = [] -> Velocity = 0
+    ; max_list(Velocities, Velocity)
+    ).
+
+plasma_shots_with_blowby(IDs) :-
+    findall(ID, (plasma_instability(ID, BlowBy, _, _), BlowBy < 10), IDs).
+
+plasma_init :-
+    retractall(plasma_shot(_, _, _, _, _, _)),
+    retractall(plasma_instability(_, _, _, _)),
+    retractall(plasma_material(_, _, _)),
+    plasma_register_material('CuW', electrode, 1.24e-3),
+    plasma_register_material('Macor', insulator, 11.1),
+    plasma_register_material('PEEK', insulator, 26.4),
+    format('[Plasma] Substrato 237 inicializado~n').
+
+
+%%% ========================================================================
+%%% SUBSTRATO 238: SUPERSONIC PLASMA JET ENGINE
+%%% ========================================================================
+
+plx_register_shot(ID, Velocity, Density, Mach, Mass, Radius) :-
+    assertz(plx_shot(ID, Velocity, Density, Mach, Mass, Radius)),
+    format('[PLX] Shot ~w: v=~2f km/s, M=~2f~n', [ID, Velocity/1000, Mach]).
+
+plx_register_jet(ID, Velocity, Density, Temp, Mach, Mass) :-
+    assertz(plx_jet(ID, Velocity, Density, Temp, Mach, Mass)).
+
+plx_best_velocity(Velocity) :-
+    findall(V, plx_shot(_, V, _, _, _, _), Velocities),
+    ( Velocities = [] -> Velocity = 0
+    ; max_list(Velocities, Velocity)
+    ).
+
+plx_avg_density(Density) :-
+    findall(D, plx_shot(_, _, D, _, _, _), Densities),
+    ( Densities = [] -> Density = 0.0
+    ; sum_list(Densities, Sum),
+      length(Densities, N),
+      Density is Sum / N
+    ).
+
+plx_init :-
+    retractall(plx_shot(_, _, _, _, _, _)),
+    retractall(plx_jet(_, _, _, _, _, _)),
+    format('[PLX] Substrato 238 inicializado~n').
+
+
+%%% ========================================================================
+%%% SUBSTRATO 239: KILOTESLA MAGNET GENERATOR
+%%% ========================================================================
+
+magnet_register_pulse(ID, Field, Current, RiseTime, Kilotesla) :-
+    assertz(magnet_pulse(ID, Field, Current, RiseTime, Kilotesla)),
+    format('[Magnet] Pulse ~w: B=~2f T, rise=~2f ns~n', [ID, Field, RiseTime]).
+
+magnet_register_design(Turns, Diameter, Field, Achieved) :-
+    assertz(magnet_design(Turns, Diameter, Field, Achieved)).
+
+magnet_best_field(Field) :-
+    findall(F, magnet_pulse(_, F, _, _, _), Fields),
+    ( Fields = [] -> Field = 0
+    ; max_list(Fields, Field)
+    ).
+
+magnet_kilotesla_pulses(IDs) :-
+    findall(ID, (magnet_pulse(ID, Field, _, _, true), Field >= 1000), IDs).
+
+magnet_init :-
+    retractall(magnet_pulse(_, _, _, _, _)),
+    retractall(magnet_design(_, _, _, _)),
+    format('[Magnet] Substrato 239 inicializado~n').
+
+
+%%% ========================================================================
 %%% ORQUESTRAÇÃO: think/3
 %%% ========================================================================
 
@@ -1229,7 +1348,7 @@ get_metrics(Metrics) :-
 
 run_full_tests :-
     format('~n╔═══════════════════════════════════════════════════════════════╗~n'),
-    format('║  🏛️ CATEDRAL OS v9.6 — TESTE (Isomorfismo EH-CRSN)         ║~n'),
+    format('║  🏛️ CATEDRAL OS v13.9 — TESTE (Substratos 237-239)         ║~n'),
     format('╚═══════════════════════════════════════════════════════════════╝~n'),
     agi_init,
 
@@ -1326,5 +1445,5 @@ run_full_tests :-
 
 :- initialization(run_full_tests, main).
 :- if(\+ current_prolog_flag(argv, _)).
-:- initialization(format('Catedral OS v9.6 carregada. Use run_full_tests.~n')).
+:- initialization(format('Catedral OS v13.9 carregada. Use run_full_tests.~n')).
 :- endif.
