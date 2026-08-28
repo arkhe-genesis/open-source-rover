@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Catedral OS v9.6 — Orquestrador Python (Isomorfismo EH-CRSN)
-Integra: AGI.prolog + Network Orchestrator + HTTP + WormGraph + ICCID + Substratos 212-217
+Catedral OS v13.9 — Orquestrador Python (Substratos Avançados)
+Integra: AGI.prolog + Network Orchestrator + HTTP + WormGraph + ICCID + Substratos 237-239
 """
 
 import json
@@ -17,8 +17,13 @@ import re
 from typing import Dict, List, Any, Optional
 from network_orchestrator import NetworkOrchestrator, NetworkConfig
 
+# Substratos 237-239
+from substrato_237 import PlasmaRailgunSubstrate
+from substrato_238 import SupersonicPlasmaJetSubstrate
+from substrato_239 import KiloteslaMagnetSubstrate
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [Cathedral] %(levelname)s: %(message)s')
-logger = logging.getLogger('cathedral.v96')
+logger = logging.getLogger('cathedral.v139')
 
 
 class SIMHarvester:
@@ -77,7 +82,7 @@ class CathedralCore:
             self.prolog = Prolog()
             self.prolog.consult(prolog_file)
             list(self.prolog.query("agi_init"))
-            logger.info(f"AGI.prolog v9.6 carregado: {prolog_file}")
+            logger.info(f"AGI.prolog v13.9 carregado: {prolog_file}")
         except ImportError:
             logger.warning("PySWIP não disponível — modo simulação")
 
@@ -187,7 +192,7 @@ class CathedralHandler(http.server.SimpleHTTPRequestHandler):
             self._json_response(self.wormgraph.get_ledger())
         elif self.path == '/api/health':
             self._json_response({
-                "status": "online", "version": "9.6",
+                "status": "online", "version": "13.9",
                 "uptime": time.time(),
                 "veto_status": "ARMED (α≥0.95 → KILL-SWITCH)",
                 "network": self.network.get_health() if self.network else None
@@ -273,8 +278,8 @@ def main():
     if not os.path.exists(prolog_file):
         logger.warning(f"{prolog_file} não encontrado. Criando stub...")
         with open(prolog_file, 'w') as f:
-            f.write(":- module(cathedral_v96, [agi_init/0, think/3, get_metrics/1, manifest_eclipse/0, iccid_register/2]).\n")
-            f.write("agi_init :- format('Catedral v9.6 stub~n').\n")
+            f.write(":- module(cathedral_v139, [agi_init/0, think/3, get_metrics/1, manifest_eclipse/0, iccid_register/2]).\n")
+            f.write("agi_init :- format('Catedral v13.9 stub~n').\n")
             f.write("think(I,O,S) :- O='ok', S=success.\n")
             f.write("get_metrics(M) :- M=[].\n")
             f.write("manifest_eclipse :- format('Eclipse simulado~n').\n")
@@ -285,14 +290,24 @@ def main():
     network = NetworkOrchestrator(NetworkConfig())
     network.start()
 
+    # Initialize new Substrates 237-239
+    substrate_237 = PlasmaRailgunSubstrate(core.prolog)
+    substrate_237.set_wormgraph(wormgraph)
+
+    substrate_238 = SupersonicPlasmaJetSubstrate(core.prolog)
+    substrate_238.set_wormgraph(wormgraph)
+
+    substrate_239 = KiloteslaMagnetSubstrate(core.prolog)
+    substrate_239.set_wormgraph(wormgraph)
+
     CathedralHandler.core = core
     CathedralHandler.wormgraph = wormgraph
     CathedralHandler.network = network
 
     wormgraph.commit({
-        "event": "cathedral_v96_init",
-        "version": "9.6",
-        "substrates": list(range(163, 218)), # Inclui 212-217
+        "event": "cathedral_v139_init",
+        "version": "13.9",
+        "substrates": list(range(163, 218)) + [237, 238, 239],
         "network": "6G/LEO/INC + Quantum Mesh + Sovereign ID + EH-CRSN Isomorphism",
         "audit_status": "Veto ATIVO em α≥0.95"
     })
@@ -302,7 +317,7 @@ def main():
 
     with socketserver.TCPServer(("", PORT), CathedralHandler) as httpd:
         print(f"\n{'='*60}")
-        print(f"  🏛️ CATEDRAL OS v9.6 — Isomorfismo EH-CRSN")
+        print(f"  🏛️ CATEDRAL OS v13.9 — Substratos Avançados")
         print(f"{'='*60}")
         print(f"  HTTP:       http://localhost:{PORT}")
         print(f"  Rede:       6G/LEO + Mesh Quântica ({network.metrics.active_nodes} nós)")
