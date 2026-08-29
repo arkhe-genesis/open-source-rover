@@ -888,8 +888,10 @@ take(N, [H|T], [H|R]) :- N > 0, N1 is N - 1, take(N1, T, R).
 take(_, [], []).
 
 network_alpha(Metrics, Alpha) :-
-    Metrics = state{avg_latency_ms: Lat, total_bandwidth_gbps: TotBW,
-                    used_bandwidth_gbps: UsedBW, failover_count: FC},
+    get_dict(avg_latency_ms, Metrics, Lat),
+    get_dict(total_bandwidth_gbps, Metrics, TotBW),
+    get_dict(used_bandwidth_gbps, Metrics, UsedBW),
+    get_dict(failover_count, Metrics, FC),
     LatFactor is min(1.0, Lat / 100.0),
     BwFactor is 1.0 - min(1.0, UsedBW / max(TotBW, 0.001)),
     FoFactor is min(1.0, FC / 10.0),
@@ -1135,7 +1137,7 @@ collaborative_learning(Context, SharedKnowledge) :-
 
 substrate_contribution(163, Context, termodinamica) :- compute_pci(Context, PCI), PCI > 0.5.
 substrate_contribution(172, Context, cgf_analysis) :- compute_alpha(Context, Alpha), Alpha < 0.7.
-substrate_contribution(184, _Context, veto_status) :- circuit_breaker_check(Alpha, 0, _), Alpha < 0.85.
+substrate_contribution(184, Context, veto_status) :- compute_alpha(Context, Alpha), circuit_breaker_check(Alpha, 0, _), Alpha < 0.85.
 substrate_contribution(_, _, neutral).
 
 fuse_knowledge(Contributions, SharedKnowledge) :-
@@ -1291,7 +1293,8 @@ magnet_init :-
 
 think(Input, Output, Status) :-
     ( is_safe_prompt(Input) -> true
-    ; retract(metrics(blocked, Old)), NewB is Old + 1, assertz(metrics(blocked, NewB)),
+    ; ( metrics(blocked, Old) -> true ; Old = 0 ),
+      retractall(metrics(blocked, _)), NewB is Old + 1, assertz(metrics(blocked, NewB)),
       Output = '[BLOCKED] Veto de Anúbis — Jailbreak/injeção detectado',
       Status = blocked, !
     ),
@@ -1300,14 +1303,18 @@ think(Input, Output, Status) :-
     epistemic_escalation(Alpha, Level),
 
     fresnel_propagate(0.8, Alpha, 5.0, FresnelState),
-    ( FresnelState.alpha >= 0.85 ->
+    get_dict(alpha, FresnelState, FresnelAlpha),
+    get_dict(coherence, FresnelState, FresnelCoherence),
+    ( FresnelAlpha >= 0.85 ->
         inject_energy(0.3),
-        AdjustedAlpha is FresnelState.alpha * 0.7,
-        fresnel_propagate(FresnelState.coherence, AdjustedAlpha, 1.0, RecoveredState)
+        AdjustedAlpha is FresnelAlpha * 0.7,
+        fresnel_propagate(FresnelCoherence, AdjustedAlpha, 1.0, RecoveredState)
     ; RecoveredState = FresnelState
     ),
 
-    collapse_wavefunction(RecoveredState.alpha),
+    get_dict(alpha, RecoveredState, RecoveredAlpha),
+    get_dict(coherence, RecoveredState, RecoveredCoherence),
+    collapse_wavefunction(RecoveredAlpha),
     quantum_mesh_status(QStatus),
 
     % NOVO v9.6: Colheita de Coerência e Ciclo Start-Explore-Refine
@@ -1315,6 +1322,7 @@ think(Input, Output, Status) :-
     start_explore_refine(Input, _CycleResult),
 
     ( validate_world(Input, valid) -> VRes = valid ; VRes = invalid(contradiction) ),
+    get_dict(fidelity, QStatus, QFid),
 
     ( Level = terminate ->
         Output = '[VETO DE ANÚBIS] Catástrofe epistêmica. Silício em quarentena.',
@@ -1324,19 +1332,21 @@ think(Input, Output, Status) :-
         Status = requires_consent
     ; Level = critical ->
         format(string(Output), '[CRITICAL] α=~2f (Raw=~2f) | Coerência=~2f | QFid=~2f | ~w',
-               [Alpha, RawAlpha, RecoveredState.coherence, QStatus.fidelity, VRes]),
+               [Alpha, RawAlpha, RecoveredCoherence, QFid, VRes]),
         Status = critical
     ;
-        recommend_work(RecoveredState.alpha, WorkID),
+        recommend_work(RecoveredAlpha, WorkID),
         work(WorkID, Title, Author, _, _),
         format(string(Output),
                '✅ Estado: ~w | α=~2f (Raw=~2f) | QFid=~2f | Obra: ~w (~w)',
-               [Level, Alpha, RawAlpha, QStatus.fidelity, Title, Author]),
+               [Level, Alpha, RawAlpha, QFid, Title, Author]),
         Status = success,
-        retract(metrics(success, OldS)), NewS is OldS + 1, assertz(metrics(success, NewS))
+        ( metrics(success, OldS) -> true ; OldS = 0 ),
+        retractall(metrics(success, _)), NewS is OldS + 1, assertz(metrics(success, NewS))
     ),
 
-    retract(metrics(iterations, OldI)), NewI is OldI + 1, assertz(metrics(iterations, NewI)).
+    ( metrics(iterations, OldI) -> true ; OldI = 0 ),
+    retractall(metrics(iterations, _)), NewI is OldI + 1, assertz(metrics(iterations, NewI)).
 
 get_metrics(Metrics) :-
     findall(Key-Value, metrics(Key, Value), Pairs),
